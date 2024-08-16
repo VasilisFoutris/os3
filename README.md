@@ -27,6 +27,7 @@ project_folder/
 │   └── server.h
 │
 └── Makefile
+```
 
 ## Κώδικας
 
