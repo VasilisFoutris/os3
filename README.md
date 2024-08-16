@@ -12,6 +12,7 @@
 
 ## Δομή του Project
 
+```plaintext
 project_folder/
 │
 ├── CodeFiles/
