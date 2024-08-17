@@ -9,7 +9,6 @@
 
 void client(int shmid1, sem_t *sem_request, sem_t *sem_response)
 {
-    // Attach shared memory
     char *shm1 = (char *)shmat(shmid1, nullptr, 0);
     if (shm1 == (char *)-1)
     {
@@ -22,20 +21,22 @@ void client(int shmid1, sem_t *sem_request, sem_t *sem_response)
         int lineNumber;
         std::cout << "Enter the line number: ";
         std::cin >> lineNumber;
+        std::cout << "Entered line number: " << lineNumber << std::endl;
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        // Wait for the dispatcher to be ready for a new request
-        sem_wait(sem_response);
-
-        // Copy the line number to shared memory
+        // Write the line number to shared memory
         std::sprintf(shm1, "%d", lineNumber);
+        std::cout << "Line number written to shared memory: " << shm1 << std::endl;
 
-        // Signal the dispatcher that a new request is available
+        // Notify the dispatcher that a request is available
         sem_post(sem_request);
+        std::cout << "Request posted to dispatcher." << std::endl;
 
         // Wait for the response from the dispatcher
+        std::cout << "Waiting for dispatcher response..." << std::endl;
         sem_wait(sem_response);
+        std::cout << "Response received from dispatcher." << std::endl;
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
@@ -46,12 +47,13 @@ void client(int shmid1, sem_t *sem_request, sem_t *sem_response)
 
         // Clear the buffer for the next communication
         shm1[0] = '\0';
+        std::cout << "Buffer cleared for next communication." << std::endl;
 
-        // Signal the dispatcher that the response has been read
+        // Notify the dispatcher that the response has been read
         sem_post(sem_request);
+        std::cout << "Dispatcher notified that the response has been read." << std::endl;
     }
 
-    // Detach from shared memory
     if (shmdt(shm1) == -1)
     {
         std::cerr << "Error: Failed to detach shared memory!" << std::endl;

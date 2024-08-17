@@ -5,9 +5,8 @@
 #include <cstring>
 #include <fstream>
 #include <unistd.h>
-#include <cstdlib> // For std::strtol
-#include <cerrno>  // For errno
-
+#include <cstdlib>
+#include <cerrno>
 void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
 {
     char *shm2 = (char *)shmat(shmid2, nullptr, 0);
@@ -18,9 +17,18 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
         return;
     }
 
+    std::ifstream file("TextInputGenerator/random_chars.txt");
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Could not open file!" << std::endl;
+        return;
+    }
+
     while (true)
     {
-        sem_wait(sem_request); // Wait for a request from dispatcher
+        std::cout << "Server is waiting for a request..." << std::endl;
+        sem_wait(sem_request); // Wait for request from dispatcher
+        std::cout << "Server detected request." << std::endl;
 
         if (shm2[0] != '\0') // Check if there's a request
         {
@@ -39,15 +47,8 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
 
             shm2[0] = '\0'; // Clear buffer before processing
 
-            std::ifstream file("TextInputGenerator/random_chars.txt");
-
-            if (!file.is_open())
-            {
-                std::cerr << "Error: Could not open file!" << std::endl;
-                std::strcpy(shm2, "Error: Could not open file!");
-                sem_post(sem_response);
-                continue;
-            }
+            file.clear();                 // Clear EOF and errors
+            file.seekg(0, std::ios::beg); // Rewind file to beginning
 
             std::string line;
             bool lineFound = false;
@@ -59,11 +60,13 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
                     break;
                 }
                 lineFound = true;
+                std::cout << "Read line " << i << ": " << line << std::endl;
             }
 
             if (lineFound)
             {
                 std::strcpy(shm2, line.c_str());
+                std::cout << "Line " << lineNumber << " found and copied to shared memory." << std::endl;
             }
             else
             {
@@ -71,11 +74,17 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
                 std::strcpy(shm2, "Error: Line not found!");
             }
 
-            file.close();
-            shm2[0] = '\0';         // Clear buffer
+            file.close();           // Close file after processing
             sem_post(sem_response); // Notify dispatcher
+        }
+        else
+        {
+            std::cerr << "No request received." << std::endl;
         }
     }
 
-    shmdt(shm2);
+    if (shmdt(shm2) == -1)
+    {
+        std::cerr << "Error: Failed to detach shared memory!" << std::endl;
+    }
 }
