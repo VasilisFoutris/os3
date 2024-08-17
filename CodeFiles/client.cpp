@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <semaphore.h>
 #include <random>
+#include <iomanip> // Include for formatting
 
 void client(int shmid1, sem_t *sem_request, sem_t *sem_response)
 {
@@ -43,8 +44,9 @@ void client(int shmid1, sem_t *sem_request, sem_t *sem_response)
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
 
+        // Format elapsed time to avoid scientific notation
         std::cout << "Line: " << shm1 << "\n";
-        std::cout << "Time taken: " << elapsed.count() << " seconds.\n";
+        std::cout << "Time taken: " << std::fixed << std::setprecision(6) << elapsed.count() << " seconds.\n";
 
         shm1[0] = '\0';
         std::cout << "Buffer cleared for next communication." << std::endl;

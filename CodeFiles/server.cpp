@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <cerrno>
+#include <string>
 
 void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
 {
@@ -21,7 +22,11 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
     std::ifstream file("TextInputGenerator/random_chars.txt");
     if (!file.is_open())
     {
-        std::cerr << "Error: Could not open file!" << std::endl;
+        std::cerr << "Error: Could not open file 'TextInputGenerator/random_chars.txt'!" << std::endl;
+        std::strcpy(shm2, "Error: File not found or cannot be opened!");
+        shm2[0] = '\0';         // Clear buffer
+        sem_post(sem_response); // Notify dispatcher
+        shmdt(shm2);            // Detach shared memory before returning
         return;
     }
 
@@ -39,7 +44,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
 
             if (*endptr != '\0' || lineNumber <= 0 || errno != 0)
             {
-                std::cerr << "Error: Invalid line number! LineNumber: " << lineNumber << std::endl;
+                std::cerr << "Error: Invalid line number received: '" << shm2 << "'!" << std::endl;
                 std::strcpy(shm2, "Error: Invalid line number!");
                 shm2[0] = '\0';         // Clear buffer
                 sem_post(sem_response); // Notify dispatcher
@@ -60,7 +65,6 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
                     break;
                 }
                 lineFound = true;
-                // std::cout << "Read line " << i << ": " << line << std::endl;
             }
 
             if (lineFound)
@@ -70,7 +74,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
             }
             else
             {
-                std::cerr << "Error: Line " << lineNumber << " not found!" << std::endl;
+                std::cerr << "Error: Line " << lineNumber << " not found in file!" << std::endl;
                 std::strcpy(shm2, "Error: Line not found!");
             }
 
