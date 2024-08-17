@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <cerrno>
+
 void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
 {
     char *shm2 = (char *)shmat(shmid2, nullptr, 0);
@@ -33,7 +34,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
         if (shm2[0] != '\0') // Check if there's a request
         {
             char *endptr;
-            errno = 0; // Reset errno before conversion
+            errno = 0;
             int lineNumber = std::strtol(shm2, &endptr, 10);
 
             if (*endptr != '\0' || lineNumber <= 0 || errno != 0)
@@ -46,8 +47,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
             }
 
             shm2[0] = '\0'; // Clear buffer before processing
-
-            file.clear();                 // Clear EOF and errors
+            file.clear();
             file.seekg(0, std::ios::beg); // Rewind file to beginning
 
             std::string line;
@@ -60,7 +60,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
                     break;
                 }
                 lineFound = true;
-                std::cout << "Read line " << i << ": " << line << std::endl;
+                // std::cout << "Read line " << i << ": " << line << std::endl;
             }
 
             if (lineFound)
@@ -74,7 +74,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
                 std::strcpy(shm2, "Error: Line not found!");
             }
 
-            file.close();           // Close file after processing
+            file.close();
             sem_post(sem_response); // Notify dispatcher
         }
         else
