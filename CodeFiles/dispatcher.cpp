@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <semaphore.h>
 
-void dispatcher(int shmid1, int shmid2, sem_t *sem_request, sem_t *sem_response)
+void dispatcher(int shmid1, int shmid2, sem_t *sem_request, sem_t *sem_response, sem_t *sem_helper)
 {
     char *shm1 = (char *)shmat(shmid1, nullptr, 0);
     char *shm2 = (char *)shmat(shmid2, nullptr, 0);
@@ -21,10 +21,8 @@ void dispatcher(int shmid1, int shmid2, sem_t *sem_request, sem_t *sem_response)
     {
         std::cout << "Dispatcher is waiting for a request..." << std::endl;
 
-        sem_wait(sem_request); // Wait for a request from the client
-        std::cout << "Dispatcher detected request." << std::endl;
-
-        if (shm1[0] != '\0')
+        sem_wait(sem_helper); // Wait for the client to signal that a request is ready
+        if (shm1[0] != '\0')  // Ensure that there is a valid request
         {
             std::cout << "Dispatcher received request: " << shm1 << std::endl;
 
@@ -32,19 +30,14 @@ void dispatcher(int shmid1, int shmid2, sem_t *sem_request, sem_t *sem_response)
             shm1[0] = '\0';          // Clear shm1 buffer
             std::cout << "Request copied to server shared memory." << std::endl;
 
-            sem_post(sem_response); // Notify server
+            sem_post(sem_request); // Notify the server that a request is ready
             std::cout << "Server notified of request." << std::endl;
 
-            sem_wait(sem_request); // Wait for server response
-            std::cout << "Server responded to request." << std::endl;
+            sem_wait(sem_response); // Wait for the server's response
 
-            std::cout << "Dispatcher sending response: " << shm2 << std::endl;
-            std::strcpy(shm1, shm2); // Send response back to client
-            shm2[0] = '\0';          // Clear shm2 buffer
-            std::cout << "Response copied to client shared memory." << std::endl;
+            std::cout << "Dispatcher received response from server: " << shm2 << std::endl;
 
-            sem_post(sem_response); // Notify client
-            std::cout << "Client notified of response." << std::endl;
+            sem_post(sem_helper); // Notify client that the response is ready
         }
         else
         {

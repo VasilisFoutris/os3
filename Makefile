@@ -2,7 +2,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -std=c++11 -Wall -IHeaderFiles
+CXXFLAGS = -std=c++11 -Wall -I$(HDR_DIR) -g
 
 # Source and header directories
 SRC_DIR = CodeFiles
@@ -40,3 +40,6 @@ clean:
 # Run the program
 run: $(TARGET)
 	./$(TARGET)
+
+# Mark targets that are not files
+.PHONY: all clean run

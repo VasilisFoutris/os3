@@ -38,12 +38,15 @@ int main()
     // Initialize semaphores
     sem_t *sem_request = sem_open("/sem_request", O_CREAT, 0644, 0);
     sem_t *sem_response = sem_open("/sem_response", O_CREAT, 0644, 0);
+    sem_t *sem_child = sem_open("/sem_child", O_CREAT, 0644, 1);   // Initialize to 1 to allow the first client to enter
+    sem_t *sem_helper = sem_open("/sem_helper", O_CREAT, 0644, 0); // Dispatcher waits initially
 
-    if (sem_request == SEM_FAILED || sem_response == SEM_FAILED)
+    if (sem_request == SEM_FAILED || sem_response == SEM_FAILED || sem_child == SEM_FAILED || sem_helper == SEM_FAILED)
     {
         std::cerr << "Error: Failed to create semaphores! " << strerror(errno) << std::endl;
         return 1;
     }
+
     std::cout << "Semaphores created: /sem_request, /sem_response" << std::endl;
 
     pid_t pid = fork();
@@ -57,7 +60,7 @@ int main()
     {
         // Child process for dispatcher
         std::cout << "Dispatcher process (PID: " << getpid() << ") starting." << std::endl;
-        dispatcher(shmid1, shmid2, sem_request, sem_response);
+        dispatcher(shmid1, shmid2, sem_request, sem_response, sem_helper);
         sem_close(sem_request);
         sem_close(sem_response);
         std::cout << "Dispatcher process (PID: " << getpid() << ") exiting." << std::endl;
@@ -82,28 +85,40 @@ int main()
         return 0;
     }
 
-    pid = fork();
-    if (pid == -1)
+    // Fork 10 client processes
+    const int num_clients = 10;
+    for (int i = 0; i < num_clients; ++i)
     {
-        std::cerr << "Error: Failed to fork client process! " << strerror(errno) << std::endl;
-        return 1;
-    }
+        pid = fork();
+        if (pid == -1)
+        {
+            std::cerr << "Error: Failed to fork client process! " << strerror(errno) << std::endl;
+            return 1;
+        }
 
-    if (pid == 0)
-    {
-        // Child process for client
-        std::cout << "Client process (PID: " << getpid() << ") starting." << std::endl;
-        client(shmid1, sem_request, sem_response);
-        sem_close(sem_request);
-        sem_close(sem_response);
-        std::cout << "Client process (PID: " << getpid() << ") exiting." << std::endl;
-        return 0;
+        if (pid == 0)
+        {
+            // Child process for client
+            std::cout << "Client process (PID: " << getpid() << ") starting." << std::endl;
+            client(shmid1, sem_request, sem_response, sem_child, sem_helper);
+            sem_close(sem_request);
+            sem_close(sem_response);
+            std::cout << "Client process (PID: " << getpid() << ") exiting." << std::endl;
+            return 0;
+        }
     }
 
     // Parent process
     std::cout << "Parent process (PID: " << getpid() << ") waiting for child processes to exit." << std::endl;
-    while (wait(nullptr) > 0)
-        ;
+    int status;
+    for (int i = 0; i < num_clients + 2; ++i) // Wait for dispatcher, server, and all clients
+    {
+        wait(&status);
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+        {
+            std::cerr << "Child process exited with an error." << std::endl;
+        }
+    }
 
     // Cleanup shared memory
     if (shmctl(shmid1, IPC_RMID, nullptr) == -1 || shmctl(shmid2, IPC_RMID, nullptr) == -1)
@@ -114,16 +129,17 @@ int main()
     std::cout << "Shared memory segments removed." << std::endl;
 
     // Cleanup semaphores
-    if (sem_close(sem_request) == -1 || sem_close(sem_response) == -1)
+    if (sem_close(sem_request) == -1 || sem_close(sem_response) == -1 || sem_close(sem_child) == -1 || sem_close(sem_helper) == -1)
     {
         std::cerr << "Error: Failed to close semaphores! " << strerror(errno) << std::endl;
         return 1;
     }
-    if (sem_unlink("/sem_request") == -1 || sem_unlink("/sem_response") == -1)
+    if (sem_unlink("/sem_request") == -1 || sem_unlink("/sem_response") == -1 || sem_unlink("/sem_child") == -1 || sem_unlink("/sem_helper") == -1)
     {
         std::cerr << "Error: Failed to unlink semaphores! " << strerror(errno) << std::endl;
         return 1;
     }
+
     std::cout << "Semaphores closed and unlinked." << std::endl;
 
     return 0;

@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cerrno>
 #include <string>
+#include <semaphore.h> // Include for semaphore operations
 
 void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
 {
@@ -33,7 +34,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
     while (true)
     {
         std::cout << "Server is waiting for a request..." << std::endl;
-        sem_wait(sem_request); // Wait for request from dispatcher
+        sem_wait(sem_request); // Wait for a request from the dispatcher
         std::cout << "Server detected request." << std::endl;
 
         if (shm2[0] != '\0') // Check if there's a request
@@ -46,8 +47,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
             {
                 std::cerr << "Error: Invalid line number received: '" << shm2 << "'!" << std::endl;
                 std::strcpy(shm2, "Error: Invalid line number!");
-                shm2[0] = '\0';         // Clear buffer
-                sem_post(sem_response); // Notify dispatcher
+                sem_post(sem_response); // Notify dispatcher that response is ready
                 continue;
             }
 
@@ -78,8 +78,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
                 std::strcpy(shm2, "Error: Line not found!");
             }
 
-            file.close();
-            sem_post(sem_response); // Notify dispatcher
+            sem_post(sem_response); // Notify dispatcher that response is ready
         }
         else
         {
