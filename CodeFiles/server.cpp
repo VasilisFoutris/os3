@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <cerrno>
 #include <string>
-#include <semaphore.h> // Include for semaphore operations
+#include <semaphore.h>
 
 void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
 {
@@ -25,19 +25,19 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
     {
         std::cerr << "Error: Could not open file 'TextInputGenerator/random_chars.txt'!" << std::endl;
         std::strcpy(shm2, "Error: File not found or cannot be opened!");
-        shm2[0] = '\0';         // Clear buffer
-        sem_post(sem_response); // Notify dispatcher
-        shmdt(shm2);            // Detach shared memory before returning
+        shm2[0] = '\0';
+        sem_post(sem_response);
+        shmdt(shm2);
         return;
     }
 
     while (true)
     {
         std::cout << "Server is waiting for a request..." << std::endl;
-        sem_wait(sem_request); // Wait for a request from the dispatcher
+        sem_wait(sem_request);
         std::cout << "Server detected request." << std::endl;
 
-        if (shm2[0] != '\0') // Check if there's a request
+        if (shm2[0] != '\0')
         {
             char *endptr;
             errno = 0;
@@ -47,13 +47,13 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
             {
                 std::cerr << "Error: Invalid line number received: '" << shm2 << "'!" << std::endl;
                 std::strcpy(shm2, "Error: Invalid line number!");
-                sem_post(sem_response); // Notify dispatcher that response is ready
+                sem_post(sem_response);
                 continue;
             }
 
-            shm2[0] = '\0'; // Clear buffer before processing
+            shm2[0] = '\0';
             file.clear();
-            file.seekg(0, std::ios::beg); // Rewind file to beginning
+            file.seekg(0, std::ios::beg);
 
             std::string line;
             bool lineFound = false;
@@ -78,7 +78,7 @@ void server(int shmid2, sem_t *sem_request, sem_t *sem_response)
                 std::strcpy(shm2, "Error: Line not found!");
             }
 
-            sem_post(sem_response); // Notify dispatcher that response is ready
+            sem_post(sem_response);
         }
         else
         {
