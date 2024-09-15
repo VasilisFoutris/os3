@@ -3,15 +3,13 @@
 #include <iostream>
 #include "../HeaderFiles/dispatcher.h"
 
-void dispatcher(int shm_key, int sem_key)
-{
+void dispatcher(int shm_key, int sem_key) {
     std::cout << "Dispatcher starting with SHM_KEY: " << shm_key << " and SEM_KEY: " << sem_key << std::endl;
 
     int shm_id = shmget(shm_key, sizeof(RequestDispatcher), 0666 | IPC_CREAT);
     int sem_id = semget(sem_key, 4, 0666 | IPC_CREAT);
 
-    if (shm_id == -1 || sem_id == -1)
-    {
+    if (shm_id == -1 || sem_id == -1) {
         perror("shmget or semget");
         exit(1);
     }
@@ -20,8 +18,7 @@ void dispatcher(int shm_key, int sem_key)
     std::cout << "Semaphore ID: " << sem_id << std::endl;
 
     RequestDispatcher *request = (RequestDispatcher *)shmat(shm_id, nullptr, 0);
-    if (request == (void *)-1)
-    {
+    if (request == (void *)-1) {
         perror("shmat");
         exit(1);
     }
@@ -30,15 +27,14 @@ void dispatcher(int shm_key, int sem_key)
 
     struct sembuf sop;
 
-    // Initialize semaphores
+    // Initialize semaphores correctly
     std::cout << "Initializing semaphores." << std::endl;
-    semctl(sem_id, 0, SETVAL, 1); // Dispatcher semaphore
-    semctl(sem_id, 1, SETVAL, 1); // Server semaphore
-    semctl(sem_id, 2, SETVAL, 0); // Dispatcher semaphore
-    semctl(sem_id, 3, SETVAL, 0); // Server semaphore
+    semctl(sem_id, 0, SETVAL, 1); // Dispatcher semaphore (0)
+    semctl(sem_id, 1, SETVAL, 1); // Server semaphore (1)
+    semctl(sem_id, 2, SETVAL, 0); // Dispatcher semaphore (2)
+    semctl(sem_id, 3, SETVAL, 0); // Server semaphore (3)
 
-    while (true)
-    {
+    while (true) {
         std::cout << "Waiting for dispatcher semaphore (P operation)." << std::endl;
         // Wait for dispatcher semaphore (P operation)
         sop.sem_num = 0; 
@@ -55,6 +51,14 @@ void dispatcher(int shm_key, int sem_key)
         semop(sem_id, &sop, 1);
 
         std::cout << "Server semaphore signaled." << std::endl;
+
+        std::cout << "Waiting for server semaphore (P operation)." << std::endl;
+        // Wait for server semaphore (P operation)
+        sop.sem_num = 3; 
+        sop.sem_op = -1;  
+        semop(sem_id, &sop, 1);
+
+        std::cout << "Server semaphore acquired." << std::endl;
 
         std::cout << "Signaling dispatcher semaphore (V operation)." << std::endl;
         // Signal dispatcher semaphore (V operation)

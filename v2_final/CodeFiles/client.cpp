@@ -34,8 +34,13 @@ void client(int shm_key, int sem_key)
     }
     std::cout << "Attached to shared memory successfully." << std::endl;
 
-    srand(time(nullptr));
+    srand(time(nullptr) ^ getpid()); // Ensure unique seed for each process
     int line_number = rand() % 100 + 1;
+    if (line_number <= 0) {
+        std::cerr << "Generated invalid line number: " << line_number << std::endl;
+        shmdt(request);
+        exit(1);
+    }
     std::cout << "Generated random line number: " << line_number << std::endl;
 
     struct sembuf sop;
